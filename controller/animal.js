@@ -30,13 +30,41 @@ function animal(
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 10, // Limit the number of connections
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000// Return an error after 2 seconds if connection cannot be established
+  // max: 10, // Adjust the max connections
+  // idleTimeoutMillis: 40000, // Close idle clients after 30 seconds
+  // connectionTimeoutMillis: 5000, // Return an error after 2 seconds if connection cannot be established
 });
 
+const saveFirst = (req, res)=> {
+  axios
+  .get(`${API}`)
+  .then(async (data) => {
+    let anim = data.data.map((value) => ({
+      name: value.name,
+      description: value.description,
+      family: value.family,
+      place_of_found: value.place_of_found,
+      species: value.species,
+      habitat: value.habitat,
+      diet: value.diet,
+      weight_kg: value.weight_kg,
+      height_cm: value.height_cm,
+      image: value.image,
+    }));
+    for (const animal of anim) {
+     const myData = await saveAnimalData(animal);
+     res.send(myData)
+    }
+  })
+  .catch((err) => {
+    res.status(500).send(err.message);
+  });
+
+}
+
+
 // get all animals or search for animal or sort in one method
-const getAllAnimals = (req, res) => {
+const getAllAnimals =  async (req, res) => {
   const sortQuery = req.query.sort;
   const sortOrder = req.query.order === "dec" ? "dec" : "asc";
   const querySearch = req.query.search;
@@ -47,7 +75,6 @@ const getAllAnimals = (req, res) => {
         res.send(data.data);
       })
       .catch((err) => {
-        console.log(err);
         res.status(500).send(err.message);
       });
   } else if (sortQuery && sortOrder) {
@@ -57,60 +84,37 @@ const getAllAnimals = (req, res) => {
         res.json(response.data);
       })
       .catch((err) => {
-        console.log("dooooo");
         res.status(500).send(err.message);
       });
   } else {
-    axios
-      .get(`${API}`)
-      .then((data) => {
-        let anim = data.data.map((value) => ({
-          name: value.name,
-          description: value.description,
-          family: value.family,
-          foundingPlace: value.foundingPlace,
-          specie: value.specie,
-          habits: value.habits,
-          diet: value.diet,
-          weight: value.weight,
-          height: value.height,
-          image: value.image,
-        }));
-        for (const animal of anim) {
-          saveAnimalData(animal);
-        }
-
-        res.send(anim);
-      })
-      .catch((err) => {
-        console.log(err);
-        res.status(500).send(err.message);
-      });
+    let sqlQuery = `SELECT * FROM animals;`
+    try{
+     const data = await pool.query(sqlQuery)
+    res.send(data)
+    }catch(err){console.log(err);}
+   
   }
 };
 const saveAnimalData = async (animal) => {
-  const client = await pool.connect();
   const query = `
     INSERT INTO animals(name, description, family, place_of_found, specie, habits, diet, weight, height, image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);`;
   const values = [
     animal.name,
     animal.description,
     animal.family,
-    animal.foundingPlace,
-    animal.specie,
-    animal.habits,
+    animal.place_of_found,
+    animal.species,
+    animal.habitat,
     animal.diet,
-    animal.weight,
-    animal.height,
+    animal.weight_kg,
+    animal.height_cm,
     animal.image,
   ];
   try {
-    await client.query(query, values);
+    await pool.query(query, values)
   } catch (error) {
     console.error("Error saving data to the database", error);
-  } finally {
-    client.release();
-  }
+  } 
 };
 
 // get animal by id
@@ -120,7 +124,6 @@ const getAnimal = (req, res) => {
   pool
     .query(sqlQuery)
     .then((data) => {
-      console.log("newwwwwwwwwwwwwwwwwwwwwwwww", data);
       res.send(data.rows);
     })
     .catch((error) => {
@@ -132,7 +135,6 @@ const getAnimal = (req, res) => {
 
 const addNewAnimal = (req, res) => {
   const requestBody = req.body;
-  console.log("name: ", requestBody.name);
   let newAnimal = [
     requestBody.name,
     requestBody.description,
@@ -204,4 +206,5 @@ module.exports = {
   getAnimal,
   updateAnimal,
   deleteAnimal,
+  saveFirst
 };
