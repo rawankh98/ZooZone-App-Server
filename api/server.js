@@ -4,7 +4,7 @@ const cors = require('cors')
 const app = express()
 app.use(cors())
 require('dotenv').config()
-const animalRoute = require('./routes/animal')
+const animalRoute = require('../routes/animal')
 const PORT = process.env.PORT || 8090
 const bodyParser = require('body-parser');
 
