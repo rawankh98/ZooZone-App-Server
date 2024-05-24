@@ -1,0 +1,30 @@
+name: Generate Project Tree
+
+on:
+  push:
+    branches:
+      - main  # Adjust this if you use a different default branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install tree
+      run: sudo apt-get install -y tree
+
+    - name: Generate tree
+      run: tree -L 2 --filelimit 50 > tree.txt
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add tree.txt
+        git commit -m 'Update project tree'
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
